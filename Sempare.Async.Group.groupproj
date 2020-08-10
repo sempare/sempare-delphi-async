@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{EAE33432-507E-40B6-81D1-352784564895}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="Sempare.Async.Pkg.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Sempare.Async.Tester.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="Sempare_Async_Pkg">
+        <MSBuild Projects="Sempare.Async.Pkg.dproj"/>
+    </Target>
+    <Target Name="Sempare_Async_Pkg:Clean">
+        <MSBuild Projects="Sempare.Async.Pkg.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Sempare_Async_Pkg:Make">
+        <MSBuild Projects="Sempare.Async.Pkg.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Sempare_Async_Tester">
+        <MSBuild Projects="Sempare.Async.Tester.dproj"/>
+    </Target>
+    <Target Name="Sempare_Async_Tester:Clean">
+        <MSBuild Projects="Sempare.Async.Tester.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Sempare_Async_Tester:Make">
+        <MSBuild Projects="Sempare.Async.Tester.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="Sempare_Async_Pkg;Sempare_Async_Tester"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="Sempare_Async_Pkg:Clean;Sempare_Async_Tester:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="Sempare_Async_Pkg:Make;Sempare_Async_Tester:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
