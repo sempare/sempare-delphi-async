@@ -12,8 +12,9 @@ type
 
   TWaitGroup = class(TInterfacedObject, IWaitGroup)
   private
-    FCount: integer;
-    Fevent: TEvent;
+    FEvent: TCountdownEvent;
+    // we subtract 1 on the first add as the CountdownEvent starts with 1 (so it doesn't signal on initialisation)
+    FSub1: boolean;
   public
     constructor Create;
     destructor Destroy; override;
@@ -27,35 +28,38 @@ implementation
 { TWaitGroup }
 
 procedure TWaitGroup.Add(const ADelta: integer);
+var
+  delta: integer;
 begin
-  if FCount + ADelta < 0 then
-    raise TWaitGroupError.Create('negative count');
-  AtomicIncrement(FCount, ADelta);
+  delta := ADelta;
+  if not FSub1 then
+  begin
+    FSub1 := true;
+    dec(delta);
+  end;
+  FEvent.AddCount(delta);
 end;
 
 constructor TWaitGroup.Create;
 begin
-  Fevent := TEvent.Create;
+  FEvent := TCountdownEvent.Create();
+  FSub1 := false;
 end;
 
 destructor TWaitGroup.Destroy;
 begin
-  Fevent.Free;
+  FEvent.Free;
   inherited;
 end;
 
 procedure TWaitGroup.Done;
 begin
-  Add(-1);
-  Fevent.SetEvent;
+  FEvent.Signal();
 end;
 
 procedure TWaitGroup.Wait(Timeout: cardinal);
 begin
-  while FCount > 0 do
-  begin
-    Fevent.WaitFor(Timeout);
-  end;
+  FEvent.WaitFor(Timeout);
 end;
 
 end.
