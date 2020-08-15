@@ -51,3 +51,15 @@ begin
   writeln(AException.Message);
 end).Start.Wait();
 ```
+
+## working with UI
+
+Use SyncUI option to safely update UI components by synchronising updates with the main thread.
+
+```
+var p1 := 
+Promise.Apply(procedure  
+begin 
+  lblValue.Text := 'some text';
+end, SyncUI).Start.Wait();
+```
