@@ -11,7 +11,6 @@ uses
   System.TimeSpan;
 
 type
-
   TPromiseResult = record
     FValue: TValue;
   strict private
@@ -33,6 +32,8 @@ type
     procedure StartNext;
     procedure SkipToEventHandler(const AException: Exception);
     procedure SetPrev(const APrev: IPromise); inline;
+    procedure Init(const EventHandler: TObject; const AEvent: TNotifyEvent; const APrev: IPromise); overload;
+
   public
     constructor Create();
     destructor Destroy; override;
@@ -40,10 +41,10 @@ type
     procedure Cancel;
 
     // ideally init would not be required as generics are not allowed on constructors.
-    procedure Init<T>(const AMethod: TPromiseMethod<T>; const APrev: IPromise = nil); overload;
-    procedure Init(const AMethod: TPromiseMethodProc; const APrev: IPromise = nil); overload;
-    procedure Init<TIn, T>(const AMethod: TPromiseMethodArg<TIn, T>; const APrev: IPromise = nil); overload;
-    procedure Init<TIn>(const AMethod: TPromiseMethodProcArg<TIn>; const APrev: IPromise = nil); overload;
+    procedure Init<T>(const AMethod: TPromiseMethod<T>; const AOption: TPromiseArg; const APrev: IPromise = nil); overload;
+    procedure Init(const AMethod: TPromiseMethodProc; const AOption: TPromiseArg; const APrev: IPromise = nil); overload;
+    procedure Init<TIn, T>(const AMethod: TPromiseMethodArg<TIn, T>; const AOption: TPromiseArg; const APrev: IPromise = nil); overload;
+    procedure Init<TIn>(const AMethod: TPromiseMethodProcArg<TIn>; const AOption: TPromiseArg; const APrev: IPromise = nil); overload;
 
     function Catch(const AMethod: TPromiseExceptionHandler): IPromise;
     function Next(): TPromiseThen;
@@ -53,40 +54,38 @@ type
     property Task: ITask read FTask;
   end;
 
-  _TEventHandler_<T> = class
+  _TEventHandlerBase_<TMethod> = class abstract
   private
+    procedure ActuallyHandleEvent(sender: TObject);
+  protected
     FPromise: IPromise;
-    FMethod: TPromiseMethod<T>;
+    FMethod: TMethod;
+    FOption: TPromiseArg;
+  protected
+    procedure DoHandleEvent(sender: TPromise); virtual; abstract;
   public
-    constructor Create(const APromise: IPromise; const AMethod: TPromiseMethod<T>);
+    constructor Create(const APromise: IPromise; const AMethod: TMethod; const AOption: TPromiseArg);
     procedure HandleEvent(sender: TObject);
   end;
 
-  _TEventHandler_<TIn, T> = class
-  private
-    FPromise: IPromise;
-    FMethod: TPromiseMethodArg<TIn, T>;
-  public
-    constructor Create(const APromise: IPromise; const AMethod: TPromiseMethodArg<TIn, T>);
-    procedure HandleEvent(sender: TObject);
+  _TEventHandler_<T> = class(_TEventHandlerBase_ < TPromiseMethod < T >> )
+  protected
+    procedure DoHandleEvent(sender: TPromise); override;
   end;
 
-  _TEventHandler_ = class
-  private
-    FPromise: IPromise;
-    FMethod: TPromiseMethodProc;
-  public
-    constructor Create(const APromise: IPromise; const AMethod: TPromiseMethodProc);
-    procedure HandleEvent(sender: TObject);
+  _TEventHandler_<TIn, T> = class(_TEventHandlerBase_ < TPromiseMethodArg < TIn, T >> )
+  protected
+    procedure DoHandleEvent(sender: TPromise); override;
   end;
 
-  _TEventHandlerArg_<TIn> = class
-  private
-    FPromise: IPromise;
-    FMethod: TPromiseMethodProcArg<TIn>;
-  public
-    constructor Create(const APromise: IPromise; const AMethod: TPromiseMethodProcArg<TIn>);
-    procedure HandleEvent(sender: TObject);
+  _TEventHandler_ = class(_TEventHandlerBase_<TPromiseMethodProc>)
+  protected
+    procedure DoHandleEvent(sender: TPromise); override;
+  end;
+
+  _TEventHandlerArg_<TIn> = class(_TEventHandlerBase_ < TPromiseMethodProcArg < TIn >> )
+  protected
+    procedure DoHandleEvent(sender: TPromise); override;
   end;
 
 implementation
@@ -149,48 +148,45 @@ begin
   FTask.Wait();
 end;
 
-procedure TPromise.Init<T>(const AMethod: TPromiseMethod<T>; const APrev: IPromise);
+procedure TPromise.Init<T>(const AMethod: TPromiseMethod<T>; const AOption: TPromiseArg; const APrev: IPromise);
 var
   handler: _TEventHandler_<T>;
 begin
-  handler := _TEventHandler_<T>.Create(self, AMethod);
-  FHandler := handler;
-  FTask := TTask.Create(self, handler.HandleEvent);
-  SetPrev(APrev);
+  handler := _TEventHandler_<T>.Create(self, AMethod, AOption);
+  Init(handler, handler.HandleEvent, APrev);
 end;
 
-procedure TPromise.Init<TIn, T>(const AMethod: TPromiseMethodArg<TIn, T>; const APrev: IPromise);
-var
-  helper: _TEventHandler_<TIn, T>;
+procedure TPromise.Init(const EventHandler: TObject; const AEvent: TNotifyEvent; const APrev: IPromise);
 begin
-  helper := _TEventHandler_<TIn, T>.Create(self, AMethod);
-  FHandler := helper;
-  FTask := TTask.Create(self, helper.HandleEvent);
+  FHandler := EventHandler;
+  FTask := TTask.Create(self, AEvent);
   SetPrev(APrev);
 end;
 
-procedure TPromise.Init<TIn>(const AMethod: TPromiseMethodProcArg<TIn>; const APrev: IPromise);
+procedure TPromise.Init<TIn, T>(const AMethod: TPromiseMethodArg<TIn, T>; const AOption: TPromiseArg; const APrev: IPromise);
 var
-  helper: _TEventHandlerArg_<TIn>;
+  handler: _TEventHandler_<TIn, T>;
 begin
-  helper := _TEventHandlerArg_<TIn>.Create(self, AMethod);
-  FHandler := helper;
-  FTask := TTask.Create(self, helper.HandleEvent);
-  SetPrev(APrev);
+  handler := _TEventHandler_<TIn, T>.Create(self, AMethod, AOption);
+  Init(handler, handler.HandleEvent, APrev);
 end;
 
-procedure TPromise.SetPrev(
+procedure TPromise.Init<TIn>(const AMethod: TPromiseMethodProcArg<TIn>; const AOption: TPromiseArg; const APrev: IPromise);
+var
+  handler: _TEventHandlerArg_<TIn>;
+begin
+  handler := _TEventHandlerArg_<TIn>.Create(self, AMethod, AOption);
+  Init(handler, handler.HandleEvent, APrev);
+end;
 
-  const APrev: IPromise);
+procedure TPromise.SetPrev(const APrev: IPromise);
 begin
   FPrev := APrev;
   if APrev <> nil then
     TPromise(APrev).FNext := self;
 end;
 
-procedure TPromise.SkipToEventHandler(
-
-  const AException: Exception);
+procedure TPromise.SkipToEventHandler(const AException: Exception);
 var
   h, n: TPromise;
   last: IPromise;
@@ -250,14 +246,12 @@ begin
   end;
 end;
 
-procedure TPromise.Init(const AMethod: TPromiseMethodProc; const APrev: IPromise);
+procedure TPromise.Init(const AMethod: TPromiseMethodProc; const AOption: TPromiseArg; const APrev: IPromise);
 var
-  helper: _TEventHandler_;
+  handler: _TEventHandler_;
 begin
-  helper := _TEventHandler_.Create(self, AMethod);
-  FHandler := helper;
-  FTask := TTask.Create(self, helper.HandleEvent);
-  SetPrev(APrev);
+  handler := _TEventHandler_.Create(self, AMethod, AOption);
+  Init(handler, handler.HandleEvent, APrev);
 end;
 
 function TPromise.Next(): TPromiseThen;
@@ -267,90 +261,66 @@ end;
 
 { TEventHandler<T> }
 
-constructor _TEventHandler_<T>.Create(const APromise: IPromise; const AMethod: TPromiseMethod<T>);
+procedure _TEventHandler_<T>.DoHandleEvent(sender: TPromise);
 begin
-  FPromise := APromise;
-  FMethod := AMethod;
-end;
-
-procedure _TEventHandler_<T>.HandleEvent(sender: TObject);
-var
-  p: TPromise;
-begin
-  p := TPromise(sender);
-  try
-    p.FValue := TValue.From<T>(FMethod);
-    p.StartNext;
-  except
-    on e: Exception do
-      p.SkipToEventHandler(e);
-  end;
+  sender.FValue := TValue.From<T>(FMethod);
 end;
 
 { _TEventHandler_<TIn, T> }
 
-constructor _TEventHandler_<TIn, T>.Create(const APromise: IPromise; const AMethod: TPromiseMethodArg<TIn, T>);
+procedure _TEventHandler_<TIn, T>.DoHandleEvent(sender: TPromise);
 begin
-  FPromise := APromise;
-  FMethod := AMethod;
-end;
-
-procedure _TEventHandler_<TIn, T>.HandleEvent(sender: TObject);
-var
-  p: TPromise;
-begin
-  p := TPromise(sender);
-  try
-    p.FValue := TValue.From<T>(FMethod(p.FValue.AsType<TIn>()));
-    p.StartNext;
-  except
-    on e: Exception do
-      p.SkipToEventHandler(e);
-  end;
+  sender.FValue := TValue.From<T>(FMethod(sender.FValue.AsType<TIn>()));
 end;
 
 { _TEventHandler_ }
 
-constructor _TEventHandler_.Create(const APromise: IPromise; const AMethod: TPromiseMethodProc);
+procedure _TEventHandler_.DoHandleEvent(sender: TPromise);
 begin
-  FPromise := APromise;
-  FMethod := AMethod;
-end;
-
-procedure _TEventHandler_.HandleEvent(sender: TObject);
-var
-  p: TPromise;
-begin
-  p := TPromise(sender);
-  try
-    FMethod();
-    p.StartNext;
-  except
-    on e: Exception do
-      p.SkipToEventHandler(e);
-  end;
+  FMethod();
 end;
 
 { _TEventHandlerArg_<TIn> }
 
-constructor _TEventHandlerArg_<TIn>.Create(const APromise: IPromise; const AMethod: TPromiseMethodProcArg<TIn>);
+procedure _TEventHandlerArg_<TIn>.DoHandleEvent(sender: TPromise);
 begin
-  FPromise := APromise;
-  FMethod := AMethod;
+  FMethod(sender.FValue.AsType<TIn>());
 end;
 
-procedure _TEventHandlerArg_<TIn>.HandleEvent(sender: TObject);
+{ _TEventHandlerBase_<TMethod> }
+
+procedure _TEventHandlerBase_<TMethod>.ActuallyHandleEvent(sender: TObject);
 var
   p: TPromise;
 begin
   p := TPromise(sender);
   try
-    FMethod(p.FValue.AsType<TIn>());
+    DoHandleEvent(p);
     p.StartNext;
   except
     on e: Exception do
       p.SkipToEventHandler(e);
   end;
+end;
+
+constructor _TEventHandlerBase_<TMethod>.Create(const APromise: IPromise; const AMethod: TMethod; const AOption: TPromiseArg);
+begin
+  FPromise := APromise;
+  FMethod := AMethod;
+  FOption := AOption;
+end;
+
+procedure _TEventHandlerBase_<TMethod>.HandleEvent(sender: TObject);
+
+begin
+  if FOption = SyncUI then
+    TThread.Synchronize(nil,
+      procedure
+      begin
+        ActuallyHandleEvent(sender);
+      end)
+  else
+    ActuallyHandleEvent(sender);
 end;
 
 end.
