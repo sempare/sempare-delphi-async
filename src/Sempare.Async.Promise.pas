@@ -32,6 +32,8 @@ type
     procedure StartNext;
     procedure SkipToEventHandler(const AException: Exception);
     procedure SetPrev(const APrev: IPromise); inline;
+    procedure Init(const EventHandler: TObject; const AEvent: TNotifyEvent; const APrev: IPromise); overload;
+
   public
     constructor Create();
     destructor Destroy; override;
@@ -151,29 +153,30 @@ var
   handler: _TEventHandler_<T>;
 begin
   handler := _TEventHandler_<T>.Create(self, AMethod, AOption);
-  FHandler := handler;
-  FTask := TTask.Create(self, handler.HandleEvent);
+  Init(handler, handler.HandleEvent, APrev);
+end;
+
+procedure TPromise.Init(const EventHandler: TObject; const AEvent: TNotifyEvent; const APrev: IPromise);
+begin
+  FHandler := EventHandler;
+  FTask := TTask.Create(self, AEvent);
   SetPrev(APrev);
 end;
 
 procedure TPromise.Init<TIn, T>(const AMethod: TPromiseMethodArg<TIn, T>; const AOption: TPromiseArg; const APrev: IPromise);
 var
-  helper: _TEventHandler_<TIn, T>;
+  handler: _TEventHandler_<TIn, T>;
 begin
-  helper := _TEventHandler_<TIn, T>.Create(self, AMethod, AOption);
-  FHandler := helper;
-  FTask := TTask.Create(self, helper.HandleEvent);
-  SetPrev(APrev);
+  handler := _TEventHandler_<TIn, T>.Create(self, AMethod, AOption);
+  Init(handler, handler.HandleEvent, APrev);
 end;
 
 procedure TPromise.Init<TIn>(const AMethod: TPromiseMethodProcArg<TIn>; const AOption: TPromiseArg; const APrev: IPromise);
 var
-  helper: _TEventHandlerArg_<TIn>;
+  handler: _TEventHandlerArg_<TIn>;
 begin
-  helper := _TEventHandlerArg_<TIn>.Create(self, AMethod, AOption);
-  FHandler := helper;
-  FTask := TTask.Create(self, helper.HandleEvent);
-  SetPrev(APrev);
+  handler := _TEventHandlerArg_<TIn>.Create(self, AMethod, AOption);
+  Init(handler, handler.HandleEvent, APrev);
 end;
 
 procedure TPromise.SetPrev(const APrev: IPromise);
@@ -245,12 +248,10 @@ end;
 
 procedure TPromise.Init(const AMethod: TPromiseMethodProc; const AOption: TPromiseArg; const APrev: IPromise);
 var
-  helper: _TEventHandler_;
+  handler: _TEventHandler_;
 begin
-  helper := _TEventHandler_.Create(self, AMethod, AOption);
-  FHandler := helper;
-  FTask := TTask.Create(self, helper.HandleEvent);
-  SetPrev(APrev);
+  handler := _TEventHandler_.Create(self, AMethod, AOption);
+  Init(handler, handler.HandleEvent, APrev);
 end;
 
 function TPromise.Next(): TPromiseThen;
