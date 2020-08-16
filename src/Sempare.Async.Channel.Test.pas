@@ -75,7 +75,7 @@ procedure TChannelTests.TestBuffered;
 var
   c: IChannel<integer>;
 begin
-  c := Channel.Create<integer>();
+  c := Channel.create<integer>();
   c.Send(123);
   assert.AreEqual(123, c.Receive(123));
 end;

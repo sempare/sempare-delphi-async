@@ -144,7 +144,7 @@ constructor TBufferedChannel<T>.Create(const ACapacity: int32);
 begin
   FMessage := TQueue<T>.Create();
   FMessage.Capacity := ACapacity;
-  inherited create;
+  inherited Create;
 end;
 
 destructor TBufferedChannel<T>.Destroy;

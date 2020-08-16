@@ -40,17 +40,17 @@ type
 
   IPromise = interface;
 
-  TPromiseArg = (paNormal, paSyncUI, SyncUI = paSyncUI);
+  TPromiseOption = (poNormal, poSyncUI, SyncUI = poSyncUI);
 
   TPromiseThen = record
   strict private
     FPromise: IPromise;
   public
     constructor Create(const APromise: IPromise);
-    function Apply<T>(const AMethod: TPromiseMethod<T>; const AOption: TPromiseArg = paNormal): IPromise; overload;
-    function Apply(const AMethod: TPromiseMethodProc; const AOption: TPromiseArg = paNormal): IPromise; overload;
-    function Apply<TIn, T>(const AMethod: TPromiseMethodArg<TIn, T>; const AOption: TPromiseArg = paNormal): IPromise; overload;
-    function Apply<T>(const AMethod: TPromiseMethodProcArg<T>; const AOption: TPromiseArg = paNormal): IPromise; overload;
+    function Apply<T>(const AMethod: TPromiseMethod<T>; const AOption: TPromiseOption = poNormal): IPromise; overload;
+    function Apply(const AMethod: TPromiseMethodProc; const AOption: TPromiseOption = poNormal): IPromise; overload;
+    function Apply<TIn, T>(const AMethod: TPromiseMethodArg<TIn, T>; const AOption: TPromiseOption = poNormal): IPromise; overload;
+    function Apply<T>(const AMethod: TPromiseMethodProcArg<T>; const AOption: TPromiseOption = poNormal): IPromise; overload;
   end;
 
   TPromiseComplete = record
@@ -69,14 +69,18 @@ type
     function Start(): TPromiseComplete;
     function Catch(const AMethod: TPromiseExceptionHandler): IPromise;
     function Next(): TPromiseThen;
+
+    procedure Wait(const ATimeout: TTimespan); overload;
+    procedure Wait(const ATimeout: cardinal); overload;
+
   end;
 
   Promise = record
   public
-    class function Apply<T>(const AMethod: TPromiseMethod<T>; const AOption: TPromiseArg = paNormal): IPromise; overload; static;
-    class function Apply(const AMethod: TPromiseMethodProc; const AOption: TPromiseArg = paNormal): IPromise; overload; static;
-    class function Apply<TIn, T>(const AMethod: TPromiseMethodArg<TIn, T>; const AOption: TPromiseArg = paNormal): IPromise; overload; static;
-    class function Apply<T>(const AMethod: TPromiseMethodProcArg<T>; const AOption: TPromiseArg = paNormal): IPromise; overload; static;
+    class function Apply<T>(const AMethod: TPromiseMethod<T>; const AOption: TPromiseOption = poNormal): IPromise; overload; static;
+    class function Apply(const AMethod: TPromiseMethodProc; const AOption: TPromiseOption = poNormal): IPromise; overload; static;
+    class function Apply<TIn, T>(const AMethod: TPromiseMethodArg<TIn, T>; const AOption: TPromiseOption = poNormal): IPromise; overload; static;
+    class function Apply<T>(const AMethod: TPromiseMethodProcArg<T>; const AOption: TPromiseOption = poNormal): IPromise; overload; static;
   end;
 
   WaitGroup = record
@@ -110,39 +114,47 @@ end;
 
 { Promise }
 
-class function Promise.Apply(const AMethod: TPromiseMethodProc; const AOption: TPromiseArg): IPromise;
+class function Promise.Apply(const AMethod: TPromiseMethodProc; const AOption: TPromiseOption): IPromise;
 var
   p: TPromise;
+  i: TPromiseItem;
 begin
-  p := TPromise.Create();
-  p.Init(AMethod, AOption);
+  p := TPromise.Create;
+  i := p.Add;
+  i.Init(AMethod, AOption);
   result := p;
 end;
 
-class function Promise.Apply<T>(const AMethod: TPromiseMethod<T>; const AOption: TPromiseArg): IPromise;
+class function Promise.Apply<T>(const AMethod: TPromiseMethod<T>; const AOption: TPromiseOption): IPromise;
 var
   p: TPromise;
+  i: TPromiseItem;
 begin
-  p := TPromise.Create();
-  p.Init<T>(AMethod, AOption);
+  p := TPromise.Create;
+  i := p.Add;
+  i.Init<T>(AMethod, AOption);
   result := p;
 end;
 
-class function Promise.Apply<T>(const AMethod: TPromiseMethodProcArg<T>; const AOption: TPromiseArg): IPromise;
+class function Promise.Apply<T>(const AMethod: TPromiseMethodProcArg<T>; const AOption: TPromiseOption): IPromise;
 var
   p: TPromise;
+  i: TPromiseItem;
 begin
-  p := TPromise.Create();
-  p.Init<T>(AMethod, AOption);
+  p := TPromise.Create;
+  i := p.Add;
+  i.Init<T>(AMethod, AOption);
   result := p;
 end;
 
-class function Promise.Apply<TIn, T>(const AMethod: TPromiseMethodArg<TIn, T>; const AOption: TPromiseArg): IPromise;
+class function Promise.Apply<TIn, T>(const AMethod: TPromiseMethodArg<TIn, T>; const AOption: TPromiseOption): IPromise;
 var
   p: TPromise;
+  i: TPromiseItem;
 begin
-  p := TPromise.Create();
-  p.Init<TIn, T>(AMethod, AOption);
+  p := TPromise.Create;
+  i := p.Add;
+  i.Init<TIn, T>(AMethod, AOption);
   result := p;
 end;
 
@@ -155,12 +167,12 @@ end;
 
 procedure TPromiseComplete.Wait(const ATimespan: TTimespan);
 begin
-  TPromise(FPromise).Task.Wait(ATimespan);
+  TPromise(FPromise).Wait(ATimespan);
 end;
 
 procedure TPromiseComplete.Wait(const ADurationMS: cardinal);
 begin
-  TPromise(FPromise).Task.Wait(ADurationMS);
+  TPromise(FPromise).Wait(ADurationMS);
 end;
 
 { TPromiseThen }
@@ -170,40 +182,40 @@ begin
   FPromise := APromise;
 end;
 
-function TPromiseThen.Apply(const AMethod: TPromiseMethodProc; const AOption: TPromiseArg): IPromise;
+function TPromiseThen.Apply(const AMethod: TPromiseMethodProc; const AOption: TPromiseOption): IPromise;
 var
-  Promise: TPromise;
+  Promise: TPromiseItem;
 begin
-  Promise := TPromise.Create();
-  Promise.Init(AMethod, AOption, TPromise(FPromise));
-  result := Promise;
+  Promise := TPromise(FPromise).Add;
+  Promise.Init(AMethod, AOption);
+  result := FPromise;
 end;
 
-function TPromiseThen.Apply<T>(const AMethod: TPromiseMethodProcArg<T>; const AOption: TPromiseArg): IPromise;
+function TPromiseThen.Apply<T>(const AMethod: TPromiseMethodProcArg<T>; const AOption: TPromiseOption): IPromise;
 var
-  Promise: TPromise;
+  Promise: TPromiseItem;
 begin
-  Promise := TPromise.Create();
+  Promise := TPromise(FPromise).Add;
   Promise.Init<T>(AMethod, AOption, FPromise);
-  result := Promise;
+  result := FPromise;
 end;
 
-function TPromiseThen.Apply<T>(const AMethod: TPromiseMethod<T>; const AOption: TPromiseArg): IPromise;
+function TPromiseThen.Apply<T>(const AMethod: TPromiseMethod<T>; const AOption: TPromiseOption): IPromise;
 var
-  Promise: TPromise;
+  Promise: TPromiseItem;
 begin
-  Promise := TPromise.Create();
+  Promise := TPromise(FPromise).Add;
   Promise.Init<T>(AMethod, AOption, FPromise);
-  result := Promise;
+  result := FPromise;
 end;
 
-function TPromiseThen.Apply<TIn, T>(const AMethod: TPromiseMethodArg<TIn, T>; const AOption: TPromiseArg): IPromise;
+function TPromiseThen.Apply<TIn, T>(const AMethod: TPromiseMethodArg<TIn, T>; const AOption: TPromiseOption): IPromise;
 var
-  Promise: TPromise;
+  Promise: TPromiseItem;
 begin
-  Promise := TPromise.Create();
+  Promise := TPromise(FPromise).Add;
   Promise.Init<TIn, T>(AMethod, AOption, FPromise);
-  result := Promise;
+  result := FPromise;
 end;
 
 end.
