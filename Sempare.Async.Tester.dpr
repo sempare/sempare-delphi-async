@@ -13,13 +13,9 @@ uses
   DUnitX.Loggers.Xml.NUnit,
   {$ENDIF }
   DUnitX.TestFramework,
+  Sempare.Async.Channel.Test in 'src\Sempare.Async.Channel.Test.pas',
   Sempare.Async.Promise.Test in 'src\Sempare.Async.Promise.Test.pas',
-  Sempare.Async in 'src\Sempare.Async.pas',
-  Sempare.Async.Channel in 'src\Sempare.Async.Channel.pas',
-  Sempare.Async.Promise in 'src\Sempare.Async.Promise.pas',
-  Sempare.Async.WaitGroup in 'src\Sempare.Async.WaitGroup.pas',
-  Sempare.Async.WaitGroup.Test in 'src\Sempare.Async.WaitGroup.Test.pas',
-  Sempare.Async.Channel.Test in 'src\Sempare.Async.Channel.Test.pas';
+  Sempare.Async.WaitGroup.Test in 'src\Sempare.Async.WaitGroup.Test.pas';
 
 {$IFNDEF TESTINSIGHT}
 var

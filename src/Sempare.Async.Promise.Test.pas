@@ -7,17 +7,16 @@ uses
   DUnitX.TestFramework;
 
 type
-
   [TestFixture]
   TPromiseTests = class
   public
-    [Test]
+    [Test, MaxTime(1000)]
     procedure TestBasic;
 
-    [Test]
+    [Test, MaxTime(1000)]
     procedure TestReturnValue;
 
-    [Test, WillRaise(EOperationCancelled)]
+    [Test, MaxTime(1000)]
     procedure TestException;
   end;
 

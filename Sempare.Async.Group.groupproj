@@ -7,7 +7,7 @@
             <Dependencies/>
         </Projects>
         <Projects Include="Sempare.Async.Tester.dproj">
-            <Dependencies/>
+            <Dependencies>Sempare.Async.Pkg.dproj</Dependencies>
         </Projects>
     </ItemGroup>
     <ProjectExtensions>
@@ -26,13 +26,13 @@
     <Target Name="Sempare_Async_Pkg:Make">
         <MSBuild Projects="Sempare.Async.Pkg.dproj" Targets="Make"/>
     </Target>
-    <Target Name="Sempare_Async_Tester">
+    <Target Name="Sempare_Async_Tester" DependsOnTargets="Sempare.Async.Pkg">
         <MSBuild Projects="Sempare.Async.Tester.dproj"/>
     </Target>
-    <Target Name="Sempare_Async_Tester:Clean">
+    <Target Name="Sempare_Async_Tester:Clean" DependsOnTargets="Sempare.Async.Pkg:Clean">
         <MSBuild Projects="Sempare.Async.Tester.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="Sempare_Async_Tester:Make">
+    <Target Name="Sempare_Async_Tester:Make" DependsOnTargets="Sempare.Async.Pkg:Make">
         <MSBuild Projects="Sempare.Async.Tester.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">

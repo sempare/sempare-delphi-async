@@ -12,7 +12,6 @@ type
   public
     [Test]
     procedure TestWaitGroup;
-
   end;
 
 implementation
